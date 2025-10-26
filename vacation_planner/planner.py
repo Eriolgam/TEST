@@ -69,13 +69,15 @@ class UserProfile:
             if not (request.end_date < start or request.start_date > end):
                 raise RestrictionError("Request conflicts with a blackout period")
 
-        requested_days_this_year = sum(
-            r.duration()
-            for r in existing
-            if r.user == self.name and r.start_date.year == request.start_date.year
-        )
-        if requested_days_this_year + request.duration() > self.annual_quota:
-            raise RestrictionError("Annual quota exceeded")
+        for year in range(request.start_date.year, request.end_date.year + 1):
+            requested_days_this_year = sum(
+                _days_in_year(r, year)
+                for r in existing
+                if r.user == self.name
+            )
+            requested_days_this_year += _days_in_year(request, year)
+            if requested_days_this_year > self.annual_quota:
+                raise RestrictionError("Annual quota exceeded")
 
 
 @dataclass
@@ -205,3 +207,15 @@ def daterange(start: date, end: date) -> Iterable[date]:
     while current <= end:
         yield current
         current += timedelta(days=1)
+
+
+def _days_in_year(request: VacationRequest, year: int) -> int:
+    """Return the number of days from ``request`` that fall within ``year``."""
+
+    start_of_year = date(year, 1, 1)
+    end_of_year = date(year, 12, 31)
+    overlap_start = max(request.start_date, start_of_year)
+    overlap_end = min(request.end_date, end_of_year)
+    if overlap_start > overlap_end:
+        return 0
+    return (overlap_end - overlap_start).days + 1

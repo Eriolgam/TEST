@@ -51,6 +51,19 @@ def test_annual_quota_is_checked():
         planner.request_vacation("Bob", date(2024, 2, 1), date(2024, 2, 15))
 
 
+def test_cross_year_requests_count_days_in_each_year():
+    planner = make_planner()
+    bob = planner._users["Bob"]
+    bob.annual_quota = 10
+    planner._global_allowed_months = set(range(1, 13))
+    planner._global_blackout_ranges.clear()
+
+    planner.request_vacation("Bob", date(2024, 12, 23), date(2025, 1, 10))
+
+    with pytest.raises(RestrictionError):
+        planner.request_vacation("Bob", date(2025, 1, 15), date(2025, 1, 16))
+
+
 def test_group_capacity_is_respected():
     planner = make_planner()
     planner.request_vacation("Alice", date(2024, 3, 4), date(2024, 3, 8))
